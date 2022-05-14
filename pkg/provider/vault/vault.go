@@ -277,6 +277,11 @@ func (c *connector) newClient(ctx context.Context, store esv1beta1.GenericStore,
 	vStore.logical = client.Logical()
 	vStore.token = client.AuthToken()
 
+	// allow SecretStore controller validation to pass
+	// when using referent namespace.
+	if vStore.storeKind == esv1beta1.ClusterSecretStoreKind && vStore.namespace == "" {
+		return vStore, nil
+	}
 	if err := vStore.setAuth(ctx, cfg); err != nil {
 		return nil, err
 	}
@@ -581,6 +586,32 @@ func (v *client) Close(ctx context.Context) error {
 }
 
 func (v *client) Validate() (esv1beta1.ValidationResult, error) {
+	// when using referent namespace we can not validate the token
+	// because the namespace is not known yet when Validate() is called
+	// from the SecretStore controller.
+	if v.storeKind == esv1beta1.ClusterSecretStoreKind {
+		if v.store.Auth.TokenSecretRef != nil && v.store.Auth.TokenSecretRef.Namespace == nil {
+			return esv1beta1.ValidationResultUnknown, nil
+		}
+		if v.store.Auth.AppRole != nil && v.store.Auth.AppRole.SecretRef.Namespace == nil {
+			return esv1beta1.ValidationResultUnknown, nil
+		}
+		if v.store.Auth.Kubernetes != nil && v.store.Auth.Kubernetes.SecretRef != nil && v.store.Auth.Kubernetes.SecretRef.Namespace == nil {
+			return esv1beta1.ValidationResultUnknown, nil
+		}
+		if v.store.Auth.Kubernetes != nil && v.store.Auth.Kubernetes.ServiceAccountRef != nil && v.store.Auth.Kubernetes.ServiceAccountRef.Namespace == nil {
+			return esv1beta1.ValidationResultUnknown, nil
+		}
+		if v.store.Auth.Ldap != nil && v.store.Auth.Ldap.SecretRef.Namespace == nil {
+			return esv1beta1.ValidationResultUnknown, nil
+		}
+		if v.store.Auth.Jwt != nil && v.store.Auth.Jwt.SecretRef.Namespace == nil {
+			return esv1beta1.ValidationResultUnknown, nil
+		}
+		if v.store.Auth.Cert != nil && v.store.Auth.Cert.SecretRef.Namespace == nil {
+			return esv1beta1.ValidationResultUnknown, nil
+		}
+	}
 	_, err := checkToken(context.Background(), v)
 	if err != nil {
 		return esv1beta1.ValidationResultError, fmt.Errorf(errInvalidCredentials, err)

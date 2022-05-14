@@ -115,9 +115,6 @@ func ErrorContains(out error, want string) bool {
 // We MUST NOT check the name or key property here. It MAY be defaulted by the provider.
 func ValidateSecretSelector(store esv1beta1.GenericStore, ref esmeta.SecretKeySelector) error {
 	clusterScope := store.GetObjectKind().GroupVersionKind().Kind == esv1beta1.ClusterSecretStoreKind
-	if clusterScope && ref.Namespace == nil {
-		return fmt.Errorf("cluster scope requires namespace")
-	}
 	if !clusterScope && ref.Namespace != nil {
 		return fmt.Errorf("namespace not allowed with namespaced SecretStore")
 	}
